@@ -1,0 +1,25 @@
+name: Chromify
+description: $description
+version: '${version}'
+
+main: com.mrkoszos.chromify.Chromify
+api-version: '26.2'
+load: POSTWORLD
+
+softdepend: [PlaceholderAPI]
+
+authors: [ mk ]
+website: https://discord.gg/PjucdG2ESs
+
+commands:
+  chromify:
+    description: Open the Chromify menu.
+    usage: /chromify
+    permission: chromify.use
+    aliases: [chrome, cf, namecolor, nc]
+
+permissions:
+  chromify.use:
+    description: Allows the player to use Chromify.
+    default: true
+
