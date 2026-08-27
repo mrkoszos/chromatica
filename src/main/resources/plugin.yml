@@ -13,8 +13,8 @@ website: https://discord.gg/PjucdG2ESs
 
 commands:
   chromify:
-    description: Open the Chromify menu.
-    usage: /chromify
+    description: Open the Chromify menu, or manage it (reload/reset/set) as an admin.
+    usage: /chromify [color|gradient|formatting|presets|favorites|reload|reset|set|clear]
     permission: chromify.use
     aliases: [chrome, cf, namecolor, nc]
 
@@ -22,4 +22,19 @@ permissions:
   chromify.use:
     description: Allows the player to use Chromify.
     default: true
-
+  chromify.reload:
+    description: Allows reloading the Chromify presets.
+    default: op
+  chromify.reset:
+    description: Allows resetting another player's name style.
+    default: op
+  chromify.set:
+    description: Allows setting another player's preset.
+    default: op
+  chromify.admin:
+    description: Grants all Chromify admin permissions.
+    default: op
+    children:
+      chromify.reload: true
+      chromify.reset: true
+      chromify.set: true
