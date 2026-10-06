@@ -1,0 +1,24 @@
+# ================================================
+#                  CHROMATICA
+# ================================================
+
+gui:
+  background:
+
+    # A menük hátterének mintája. A minta maga hard-code-olt,
+    # itt csak azt lehet kiválasztani, melyiket használja a plugin.
+    #
+    # Lehetséges értékek:
+    #   SOLID        - minden üres slot "primary" item lesz
+    #   CHECKERBOARD - sakktábla minta (primary/secondary váltakozva)
+    #   BORDER       - a szegély (legszélső sor/oszlop) primary, minden más secondary
+    #   CLASSIC       - az eredeti, dekoratív Chromatica minta
+    pattern: CLASSIC
+
+    primary:
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+
+    secondary:
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "

@@ -1,8 +1,8 @@
-name: Chromify
+name: Chromatica
 description: $description
 version: '${version}'
 
-main: com.mrkoszos.chromify.Chromify
+main: com.mrkoszos.chromatica.Chromatica
 api-version: '26.2'
 load: POSTWORLD
 
@@ -12,29 +12,29 @@ authors: [ mk ]
 website: https://discord.gg/PjucdG2ESs
 
 commands:
-  chromify:
-    description: Open the Chromify menu, or manage it (reload/reset/set) as an admin.
-    usage: /chromify [color|gradient|formatting|presets|favorites|reload|reset|set|clear]
-    permission: chromify.use
-    aliases: [chrome, cf, namecolor, nc]
+  chromatica:
+    description: Open the Chromatica menu, or manage it (reload/reset/set) as an admin.
+    usage: /chromatica [color|gradient|formatting|presets|favorites|reload|reset|set|clear]
+    permission: chromatica.use
+    aliases: [chroma, ch, namecolor, nc]
 
 permissions:
-  chromify.use:
-    description: Allows the player to use Chromify.
+  chromatica.use:
+    description: Allows the player to use Chromatica.
     default: true
-  chromify.reload:
-    description: Allows reloading the Chromify presets.
+  chromatica.reload:
+    description: Allows reloading the Chromatica presets.
     default: op
-  chromify.reset:
+  chromatica.reset:
     description: Allows resetting another player's name style.
     default: op
-  chromify.set:
+  chromatica.set:
     description: Allows setting another player's preset.
     default: op
-  chromify.admin:
-    description: Grants all Chromify admin permissions.
+  chromatica.admin:
+    description: Grants all Chromatica admin permissions.
     default: op
     children:
-      chromify.reload: true
-      chromify.reset: true
-      chromify.set: true
+      chromatica.reload: true
+      chromatica.reset: true
+      chromatica.set: true

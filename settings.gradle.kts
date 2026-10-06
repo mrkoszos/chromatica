@@ -1,1 +1,1 @@
-rootProject.name = "Chromify 26.2"
+rootProject.name = "Chromatica 26.2"
