@@ -2,190 +2,163 @@ package com.mrkoszos.chromatica.gui;
 
 import com.mrkoszos.chromatica.Chromatica;
 import com.mrkoszos.chromatica.model.NameStyle;
+import java.util.ArrayList;
+import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class FavoritesMenu {
 
-    public static final String TITLE = "Favorites";
+  public static final net.kyori.adventure.text.Component TITLE =
+      net.kyori.adventure.text.Component.text("Favorites");
 
-    private static final int PREVIEW_SLOT = 4;
-    public static final int[] FAVORITE_SLOTS = {11, 12, 13, 14, 15};
-    private static final int BACK_SLOT = 21;
-    private static final int CLOSE_SLOT = 23;
+  private static final int PREVIEW_SLOT = 4;
+  public static final int[] FAVORITE_SLOTS = {11, 12, 13, 14, 15};
+  public static final int BACK_SLOT = 22;
 
-    private final Chromatica plugin;
+  private final Chromatica plugin;
 
-    public FavoritesMenu(Chromatica plugin) {
-        this.plugin = plugin;
-    }
+  public FavoritesMenu(Chromatica plugin) {
+    this.plugin = plugin;
+  }
 
-    public void open(Player player) {
+  public void open(Player player) {
+    Inventory inventory = GuiUtils.inventory(plugin, 27, TITLE, "FavoritesMenu");
+    refresh(player, inventory);
+    GuiUtils.open(player, inventory);
+  }
 
-        NameStyle[] favorites = plugin.getFavoriteManager().getAll(player.getUniqueId());
+  public void refresh(Player player, Inventory inventory) {
+    inventory.clear();
 
-        Inventory inventory = plugin.getServer().createInventory(null, 27, TITLE);
+    NameStyle[] favorites = plugin.getFavoriteManager().getAll(player.getUniqueId());
 
-        /*
-         * =========================
-         *          PREVIEW
-         * =========================
-         */
+    /*
+     * =========================
+     *          PREVIEW
+     * =========================
+     */
 
-        NameStyle currentStyle = plugin.getNameStyleManager().getStyle(player.getUniqueId());
+    NameStyle currentStyle = plugin.getNameStyleManager().getStyle(player.getUniqueId());
 
-        Component preview = plugin.getNameRenderer().render(player.getName(), currentStyle);
+    Component preview =
+        plugin
+            .getNameRenderer()
+            .render(
+                player.getName(), currentStyle, player.hasPermission("chromatica.format.scramble"));
 
-        ItemStack previewItem = new ItemStack(Material.ENDER_EYE);
+    ItemStack previewItem = GuiHeads.playerHead(player, Material.ENDER_EYE);
 
-        ItemMeta previewMeta = previewItem.getItemMeta();
+    ItemMeta previewMeta = previewItem.getItemMeta();
 
-        previewMeta.displayName(preview.decoration(TextDecoration.ITALIC, false));
+    previewMeta.displayName(preview);
 
-        previewMeta.lore(
-                List.of(
-                        Component.text("Your current name style.", NamedTextColor.GRAY)
-                                .decoration(TextDecoration.ITALIC, false)
-                )
-        );
+    previewItem.setItemMeta(previewMeta);
 
-        previewItem.setItemMeta(previewMeta);
+    inventory.setItem(PREVIEW_SLOT, previewItem);
 
-        inventory.setItem(PREVIEW_SLOT, previewItem);
+    /*
+     * =========================
+     *       FAVORITE SLOTS
+     * =========================
+     */
 
-        /*
-         * =========================
-         *       FAVORITE SLOTS
-         * =========================
-         */
+    var candidates = new java.util.LinkedHashMap<String, NameStyle>();
+    for (int i = 0; i < favorites.length; i++)
+      if (favorites[i] != null) candidates.put(String.valueOf(i), favorites[i]);
+    String selected =
+        GuiSelection.selected(
+            plugin, player.getUniqueId(), "favorite", currentStyle, candidates, false);
+    for (int i = 0; i < FAVORITE_SLOTS.length; i++) {
 
-        for (int i = 0; i < FAVORITE_SLOTS.length; i++) {
-
-            inventory.setItem(
-                    FAVORITE_SLOTS[i],
-                    createFavoriteItem(player, favorites[i], i)
-            );
-        }
-
-        /*
-         * =========================
-         *            BACK
-         * =========================
-         */
-
-        inventory.setItem(
-                BACK_SLOT,
-                createItem(Material.ARROW, ChatColor.RED + "Back")
-        );
-
-        /*
-         * =========================
-         *           CLOSE
-         * =========================
-         */
-
-        inventory.setItem(
-                CLOSE_SLOT,
-                createItem(
-                        Material.STRUCTURE_VOID,
-                        ChatColor.RED + "Close",
-                        ChatColor.GRAY + "Closes this menu."
-                )
-        );
-
-        /*
-         * =========================
-         *        BACKGROUND
-         * =========================
-         */
-
-        GuiUtils.fillEmptySlots(inventory, plugin);
-
-        player.openInventory(inventory);
+      inventory.setItem(
+          FAVORITE_SLOTS[i],
+          GuiUtils.selected(
+              createFavoriteItem(player, favorites[i], i), String.valueOf(i).equals(selected)));
     }
 
     /*
      * =========================
-     *      FAVORITE ITEM
+     *            BACK
      * =========================
      */
 
-    private ItemStack createFavoriteItem(Player player, NameStyle style, int index) {
-
-        if (style == null) {
-
-            return createItem(
-                    Material.ITEM_FRAME,
-                    ChatColor.GREEN + "Empty Slot",
-                    ChatColor.GRAY + "Click to save your current",
-                    ChatColor.GRAY + "name style here."
-            );
-        }
-
-        ItemStack item = new ItemStack(Material.GLOW_ITEM_FRAME);
-
-        ItemMeta meta = item.getItemMeta();
-
-        Component preview = plugin.getNameRenderer().render(player.getName(), style);
-
-        meta.displayName(preview.decoration(TextDecoration.ITALIC, false));
-
-        List<Component> lore = new ArrayList<>();
-
-        lore.add(
-                Component.text("Slot " + (index + 1), NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-        );
-
-        lore.add(Component.empty());
-
-        lore.add(
-                Component.text("Left click to apply.", NamedTextColor.YELLOW)
-                        .decoration(TextDecoration.ITALIC, false)
-        );
-
-        lore.add(
-                Component.text("Right click to remove.", NamedTextColor.RED)
-                        .decoration(TextDecoration.ITALIC, false)
-        );
-
-        meta.lore(lore);
-
-        item.setItemMeta(meta);
-
-        return item;
-    }
+    inventory.setItem(
+        BACK_SLOT,
+        GuiUtils.item(
+            Material.BARRIER,
+            GuiUtils.text("Back", net.kyori.adventure.text.format.NamedTextColor.RED)));
 
     /*
      * =========================
-     *         GENERIC ITEM
+     *           CLOSE
      * =========================
      */
 
-    private ItemStack createItem(Material material, String name, String... lore) {
+    /*
+     * =========================
+     *        BACKGROUND
+     * =========================
+     */
 
-        ItemStack item = new ItemStack(material);
+    GuiUtils.fillEmptySlots(inventory, plugin);
+  }
 
-        ItemMeta meta = item.getItemMeta();
+  /*
+   * =========================
+   *      FAVORITE ITEM
+   * =========================
+   */
 
-        meta.setDisplayName(name);
+  private ItemStack createFavoriteItem(Player player, NameStyle style, int index) {
 
-        if (lore.length > 0) {
-            meta.setLore(List.of(lore));
-        }
+    if (style == null) {
 
-        item.setItemMeta(meta);
-
-        return item;
+      return GuiUtils.item(
+          Material.ITEM_FRAME,
+          GuiUtils.text(
+              "Favorite " + (index + 1) + " (Empty)",
+              net.kyori.adventure.text.format.NamedTextColor.GREEN),
+          GuiUtils.text("Save current style", net.kyori.adventure.text.format.NamedTextColor.GRAY));
     }
+
+    ItemStack item = new ItemStack(Material.GLOW_ITEM_FRAME);
+
+    ItemMeta meta = item.getItemMeta();
+
+    Component preview =
+        plugin
+            .getNameRenderer()
+            .render(player.getName(), style, player.hasPermission("chromatica.format.scramble"));
+
+    meta.displayName(preview);
+
+    List<Component> lore = new ArrayList<>();
+
+    lore.add(
+        Component.text("Favorite " + (index + 1), NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false));
+
+    lore.add(
+        Component.text("Drop: remove", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+
+    meta.lore(lore);
+
+    item.setItemMeta(meta);
+
+    return item;
+  }
+
+  /*
+   * =========================
+   *         GENERIC ITEM
+   * =========================
+   */
+
 }

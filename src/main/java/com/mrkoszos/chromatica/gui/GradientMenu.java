@@ -1,342 +1,117 @@
 package com.mrkoszos.chromatica.gui;
 
 import com.mrkoszos.chromatica.Chromatica;
-import com.mrkoszos.chromatica.model.NameStyle;
+import java.util.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.bukkit.inventory.*;
 
 public class GradientMenu {
+  public static final Component TITLE = Component.text("Gradient");
+  public static final int[] GRADIENT_SLOTS = {
+    10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34
+  };
+  public static final int APPLY_SLOT = 21, BACK_SLOT = 23, ADD_SLOT = 22;
 
-    public static final String TITLE = "Gradient";
+  public static boolean expandedLayout(String value, java.util.logging.Logger logger) {
+    if ("expanded".equalsIgnoreCase(value)) return true;
+    if (value != null && !"compact".equalsIgnoreCase(value))
+      logger.warning("Invalid gui.gradient.layout; using compact (valid: compact, expanded).");
+    return false;
+  }
 
-    private static final int[] GRADIENT_SLOTS = {
-            10, 11, 12, 13, 14, 15, 16,
-            19, 20, 21, 22, 23, 24, 25
-    };
+  private final Chromatica plugin;
 
-    private static final int PREVIEW_SLOT = 4;
-    private static final int ADD_SLOT = 39;
-    private static final int APPLY_SLOT = 40;
-    private static final int BACK_SLOT = 41;
+  public GradientMenu(Chromatica plugin) {
+    this.plugin = plugin;
+  }
 
-    private final Chromatica plugin;
-
-    public GradientMenu(Chromatica plugin) {
-        this.plugin = plugin;
+  public void open(Player player) {
+    var colors = plugin.getGradientSession().get(player.getUniqueId());
+    if (colors == null) {
+      var saved = plugin.getNameStyleManager().getStyle(player.getUniqueId()).getGradientColors();
+      plugin
+          .getGradientSession()
+          .start(player.getUniqueId(), saved.size() >= 2 ? saved : List.of("#FF0000", "#0000FF"));
+      colors = plugin.getGradientSession().get(player.getUniqueId());
     }
+    int size = plugin.isExpandedGradient() || colors.size() > 7 ? 45 : 27;
+    Inventory inventory = GuiUtils.inventory(plugin, size, TITLE, "GradientMenu");
+    refresh(player, inventory);
+    GuiUtils.open(player, inventory);
+  }
 
-    public void open(Player player) {
+  public static int capacity(Inventory inventory) {
+    return inventory.getSize() >= 45 ? GRADIENT_SLOTS.length : 7;
+  }
 
-        NameStyle style = plugin
-                .getNameStyleManager()
-                .getStyle(player.getUniqueId());
+  public static int applySlot(Inventory inventory) {
+    return capacity(inventory) > 7 ? 39 : APPLY_SLOT;
+  }
 
-        /*
-         * =========================
-         *      START SESSION
-         * =========================
-         */
+  public static int addSlot(Inventory inventory) {
+    return capacity(inventory) > 7 ? 40 : ADD_SLOT;
+  }
 
-        if (plugin.getGradientSession()
-                .get(player.getUniqueId()) == null) {
+  public static int backSlot(Inventory inventory) {
+    return capacity(inventory) > 7 ? 41 : BACK_SLOT;
+  }
 
-            List<String> existing =
-                    style.getGradientColors();
-
-            List<String> colors;
-
-            if (existing == null || existing.size() < 2) {
-
-                colors = new ArrayList<>();
-                colors.add("#FF0000");
-                colors.add("#0000FF");
-
-            } else {
-
-                colors = new ArrayList<>(existing);
-            }
-
-            plugin.getGradientSession().start(
-                    player.getUniqueId(),
-                    colors
-            );
-        }
-
-        List<String> colors =
-                plugin.getGradientSession()
-                        .get(player.getUniqueId());
-
-        /*
-         * =========================
-         *         INVENTORY
-         * =========================
-         */
-
-        Inventory inventory = plugin.getServer()
-                .createInventory(
-                        null,
-                        45,
-                        TITLE
-                );
-
-        /*
-         * =========================
-         *          PREVIEW
-         * =========================
-         */
-
-        Component preview =
-                plugin.getNameRenderer()
-                        .renderGradientPreview(
-                                player.getName(),
-                                colors,
-                                style
-                        );
-
-        ItemStack previewItem =
-                new ItemStack(Material.ENDER_EYE);
-
-        ItemMeta previewMeta =
-                previewItem.getItemMeta();
-
-        previewMeta.displayName(
-                preview.decoration(
-                        TextDecoration.ITALIC,
-                        false
-                )
-        );
-
-        previewMeta.lore(
-                List.of(
-                        Component.text(
-                                "Current gradient preview.",
-                                NamedTextColor.GRAY
-                        ).decoration(
-                                TextDecoration.ITALIC,
-                                false
-                        )
-                )
-        );
-
-        previewItem.setItemMeta(previewMeta);
-
-        inventory.setItem(
-                PREVIEW_SLOT,
-                previewItem
-        );
-
-        /*
-         * =========================
-         *       COLOR SLOTS
-         * =========================
-         */
-
-        for (int i = 0; i < colors.size(); i++) {
-
-            if (i >= GRADIENT_SLOTS.length) {
-                break;
-            }
-
-            String hex = colors.get(i);
-
-            inventory.setItem(
-                    GRADIENT_SLOTS[i],
-                    createColorItem(
-                            getColorMaterial(hex),
-                            "Color " + (i + 1),
-                            hex
-                    )
-            );
-        }
-
-        /*
-         * =========================
-         *        ADD COLOR
-         * =========================
-         */
-
-        inventory.setItem(
-                ADD_SLOT,
-                createItem(
-                        Material.LIME_DYE,
-                        ChatColor.GREEN + "Apply",
-                        ChatColor.GRAY +
-                                "Apply this gradient."
-                )
-        );
-
-        /*
-         * =========================
-         *           APPLY
-         * =========================
-         */
-
-        inventory.setItem(
-                APPLY_SLOT,
-                createItem(
-                        Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE,
-                        ChatColor.GREEN + "Add Color",
-                        ChatColor.GRAY +
-                                "Add another gradient color."
-                )
-        );
-
-        /*
-         * =========================
-         *            BACK
-         * =========================
-         */
-
-        inventory.setItem(
-                BACK_SLOT,
-                createItem(
-                        Material.BARRIER,
-                        ChatColor.RED + "Back",
-                        ChatColor.GRAY +
-                                "Discard changes."
-                )
-        );
-
-        /*
-         * =========================
-         *        BACKGROUND
-         * =========================
-         */
-
-        GuiUtils.fillBorderRowsOnly(inventory, plugin);
-
-        player.openInventory(inventory);
+  public void refresh(Player player, Inventory inventory) {
+    inventory.clear();
+    var style = plugin.getNameStyleManager().getStyle(player.getUniqueId());
+    var colors = plugin.getGradientSession().get(player.getUniqueId());
+    if (colors == null) {
+      plugin
+          .getGradientSession()
+          .start(
+              player.getUniqueId(),
+              style.getGradientColors().size() >= 2
+                  ? style.getGradientColors()
+                  : List.of("#FF0000", "#0000FF"));
+      colors = plugin.getGradientSession().get(player.getUniqueId());
     }
-
-    /*
-     * =========================
-     *       COLOR MATERIAL
-     * =========================
-     */
-
-    private Material getColorMaterial(String hex) {
-
-        if (hex == null) {
-            return Material.WHITE_DYE;
-        }
-
-        String color = hex.toUpperCase();
-
-        return switch (color) {
-
-            case "#FF0000", "#FF5555", "#AA0000" -> Material.RED_DYE;
-            case "#FFAA00", "#FFAA55" -> Material.ORANGE_DYE;
-            case "#FFFF00", "#FFFF55" -> Material.YELLOW_DYE;
-            case "#55FF55", "#00FF00" -> Material.LIME_DYE;
-            case "#55FFFF", "#00FFFF" -> Material.CYAN_DYE;
-            case "#5555FF", "#0000FF" -> Material.BLUE_DYE;
-            case "#AA55FF", "#AA00AA", "#FF55FF" -> Material.PURPLE_DYE;
-            case "#FFFFFF" -> Material.WHITE_DYE;
-            case "#000000" -> Material.BLACK_DYE;
-            default -> Material.WHITE_DYE;
-        };
+    var head = GuiHeads.playerHead(player, Material.ENDER_EYE);
+    var meta = head.getItemMeta();
+    meta.displayName(
+        plugin
+            .getNameRenderer()
+            .renderGradientPreview(
+                player.getName(),
+                colors,
+                style,
+                player.hasPermission("chromatica.format.scramble")));
+    head.setItemMeta(meta);
+    inventory.setItem(4, head);
+    for (int i = 0; i < Math.min(colors.size(), capacity(inventory)); i++) {
+      String hex = colors.get(i);
+      inventory.setItem(
+          GRADIENT_SLOTS[i],
+          GuiUtils.item(
+              DyeColors.nearest(hex),
+              Component.text(
+                  "Color " + (i + 1), net.kyori.adventure.text.format.TextColor.fromHexString(hex)),
+              GuiUtils.text(hex, NamedTextColor.GRAY),
+              GuiUtils.text("Right-click: remove", NamedTextColor.RED)));
     }
-
-    /*
-     * =========================
-     *       COLOR ITEM
-     * =========================
-     */
-
-    private ItemStack createColorItem(
-            Material material,
-            String name,
-            String hex
-    ) {
-
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-
-        Component coloredName = Component.text(name);
-        TextColor textColor = TextColor.fromHexString(hex);
-
-        if (textColor != null) {
-            coloredName = coloredName.color(textColor);
-        }
-
-        coloredName = coloredName.decoration(
-                TextDecoration.ITALIC,
-                false
-        );
-
-        meta.displayName(coloredName);
-
-        Component hexComponent = Component.text(hex);
-
-        if (textColor != null) {
-            hexComponent = hexComponent.color(textColor);
-        }
-
-        hexComponent = hexComponent.decoration(
-                TextDecoration.ITALIC,
-                false
-        );
-
-        meta.lore(
-                List.of(
-                        hexComponent,
-                        Component.empty(),
-                        Component.text(
-                                "Left click to change.",
-                                NamedTextColor.YELLOW
-                        ).decoration(
-                                TextDecoration.ITALIC,
-                                false
-                        ),
-                        Component.text(
-                                "Right click to remove.",
-                                NamedTextColor.RED
-                        ).decoration(
-                                TextDecoration.ITALIC,
-                                false
-                        )
-                )
-        );
-
-        item.setItemMeta(meta);
-
-        return item;
-    }
-
-    /*
-     * =========================
-     *         GENERIC ITEM
-     * =========================
-     */
-
-    private ItemStack createItem(
-            Material material,
-            String name,
-            String... lore
-    ) {
-
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-
-        meta.setDisplayName(name);
-
-        if (lore.length > 0) {
-            meta.setLore(List.of(lore));
-        }
-
-        item.setItemMeta(meta);
-
-        return item;
-    }
+    inventory.setItem(
+        applySlot(inventory),
+        GuiUtils.item(
+            Material.KNOWLEDGE_BOOK,
+            GuiUtils.text("Apply Gradient", NamedTextColor.GREEN)));
+    inventory.setItem(
+        backSlot(inventory),
+        GuiUtils.item(Material.BARRIER, GuiUtils.text("Back", NamedTextColor.RED)));
+    inventory.setItem(addSlot(inventory),
+        GuiUtils.item(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE,
+            GuiUtils.text("Add Color", NamedTextColor.GREEN)));
+    GuiUtils.mark(
+        inventory, applySlot(inventory), GuiSelection.sameColors(style, GuiSelection.colors(colors)));
+    GuiUtils.fillEmptySlots(inventory, plugin);
+    // Empty stops are intentionally empty, including in the second row of expanded mode.
+    for (int i = colors.size(); i < capacity(inventory); i++)
+      inventory.setItem(GRADIENT_SLOTS[i], null);
+  }
 }

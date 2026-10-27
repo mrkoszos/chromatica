@@ -2,157 +2,96 @@ package com.mrkoszos.chromatica.manager;
 
 import com.mrkoszos.chromatica.Chromatica;
 import com.mrkoszos.chromatica.model.NameStyle;
-import com.mrkoszos.chromatica.model.StyleType;
+import java.io.File;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
+/** Published values are never mutated or exposed. Async readers never perform disk I/O. */
 public class NameStyleManager {
+  private final Path folder;
+  private final Logger logger;
+  private final Map<UUID, NameStyle> styles = new ConcurrentHashMap<>();
+  private final Set<UUID> unreadable = new HashSet<>();
 
-    private final Chromatica plugin;
-    private final File folder;
+  public NameStyleManager(Chromatica plugin) { this(plugin.getDataFolder(), plugin.getLogger()); }
+  public NameStyleManager(File dataFolder, Logger logger) {
+    this.folder = dataFolder.toPath().resolve("playerdata");
+    this.logger = logger;
+  }
 
-    private final Map<UUID, NameStyle> styles = new HashMap<>();
+  /** Main-thread load/edit entry point. Callers own the returned draft. */
+  public synchronized NameStyle getStyle(UUID uuid) {
+    return styles.computeIfAbsent(uuid, this::loadStyle).copy();
+  }
 
-    public NameStyleManager(Chromatica plugin) {
+  /** Lock-free detached snapshot, with no disk I/O even for uncached players. */
+  public NameStyle getSnapshot(UUID uuid) {
+    NameStyle style = styles.get(uuid);
+    return style == null ? new NameStyle() : style.copy();
+  }
 
-        this.plugin = plugin;
-
-        this.folder = new File(
-                plugin.getDataFolder(),
-                "playerdata"
-        );
-
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
+  /** Publish only after file replacement succeeds. Failure retains the previous value. */
+  public synchronized boolean setStyle(UUID uuid, NameStyle style) {
+    getStyle(uuid);
+    if (unreadable.contains(uuid)) return false;
+    Path temporary = null;
+    try {
+      NameStyle next = NameStyleCodec.validated(style);
+      Files.createDirectories(folder);
+      temporary = Files.createTempFile(folder, uuid + "-", ".tmp");
+      YamlConfiguration yaml = new YamlConfiguration();
+      NameStyleCodec.write(yaml, next);
+      yaml.save(temporary.toFile());
+      try {
+        Files.move(temporary, file(uuid), StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING);
+      } catch (AtomicMoveNotSupportedException exception) {
+        Files.move(temporary, file(uuid), StandardCopyOption.REPLACE_EXISTING);
+      }
+      styles.put(uuid, next);
+      return true;
+    } catch (Exception exception) {
+      logger.warning("Cannot save player style for " + uuid + ": " + exception.getMessage());
+      return false;
+    } finally {
+      if (temporary != null) try { Files.deleteIfExists(temporary); }
+      catch (java.io.IOException exception) { logger.warning("Cannot remove style temporary file: " + exception.getMessage()); }
     }
+  }
 
-    public NameStyle getStyle(UUID uuid) {
+  /** Rewrite the committed snapshot; persist edited drafts with setStyle instead. */
+  public synchronized boolean saveStyle(UUID uuid) { return setStyle(uuid, getStyle(uuid)); }
 
-        return styles.computeIfAbsent(
-                uuid,
-                this::loadStyle
-        );
+  public synchronized boolean resetStyle(UUID uuid) {
+    try {
+      Files.deleteIfExists(file(uuid));
+      styles.put(uuid, new NameStyle());
+      unreadable.remove(uuid);
+      return true;
+    } catch (java.io.IOException exception) {
+      logger.warning("Cannot reset player style for " + uuid + ": " + exception.getMessage());
+      return false;
     }
+  }
 
-    public void setStyle(UUID uuid, NameStyle style) {
+  public boolean hasStyle(UUID uuid) { return styles.containsKey(uuid); }
+  public synchronized void unload(UUID uuid) { styles.remove(uuid); unreadable.remove(uuid); }
 
-        styles.put(uuid, style);
-
-        saveStyle(uuid);
+  private NameStyle loadStyle(UUID uuid) {
+    if (!Files.exists(file(uuid))) return new NameStyle();
+    try {
+      if (Files.size(file(uuid)) > 262144) throw new java.io.IOException("Style file exceeds 256 KiB");
+      YamlConfiguration yaml = new YamlConfiguration();
+      yaml.load(file(uuid).toFile());
+      return NameStyleCodec.read(yaml);
+    } catch (Exception exception) {
+      unreadable.add(uuid);
+      logger.warning("Cannot load player style for " + uuid + "; preserving file: " + exception.getMessage());
+      return new NameStyle();
     }
-
-    public void resetStyle(UUID uuid) {
-
-        styles.remove(uuid);
-
-        File file = getFile(uuid);
-
-        if (file.exists()) {
-            file.delete();
-        }
-    }
-
-    public boolean hasStyle(UUID uuid) {
-        return styles.containsKey(uuid);
-    }
-
-    /*
-     * =========================
-     *          SAVE
-     * =========================
-     * A GUI-listenerek ezt hívják meg
-     * minden módosítás után.
-     */
-
-    public void saveStyle(UUID uuid) {
-
-        NameStyle style = styles.get(uuid);
-
-        if (style == null) {
-            return;
-        }
-
-        File file = getFile(uuid);
-
-        YamlConfiguration config = new YamlConfiguration();
-
-        config.set("type", style.getType().name());
-        config.set("primary-color", style.getPrimaryColor());
-        config.set("secondary-color", style.getSecondaryColor());
-        config.set("gradient-colors", style.getGradientColors());
-        config.set("preset-id", style.getPresetId());
-        config.set("bold", style.isBold());
-        config.set("italic", style.isItalic());
-        config.set("underlined", style.isUnderlined());
-        config.set("strikethrough", style.isStrikethrough());
-
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            plugin.getLogger().warning(
-                    "Failed to save style for " + uuid + ": " + e.getMessage()
-            );
-        }
-    }
-
-    /*
-     * =========================
-     *          LOAD
-     * =========================
-     */
-
-    private NameStyle loadStyle(UUID uuid) {
-
-        File file = getFile(uuid);
-
-        if (!file.exists()) {
-            return new NameStyle();
-        }
-
-        YamlConfiguration config =
-                YamlConfiguration.loadConfiguration(file);
-
-        NameStyle style = new NameStyle();
-
-        String typeName = config.getString("type", "SOLID");
-
-        try {
-            style.setType(StyleType.valueOf(typeName));
-        } catch (IllegalArgumentException e) {
-            style.setType(StyleType.SOLID);
-        }
-
-        style.setPrimaryColor(
-                config.getString("primary-color", "#FFFFFF")
-        );
-
-        style.setSecondaryColor(
-                config.getString("secondary-color", null)
-        );
-
-        style.setGradientColors(
-                config.getStringList("gradient-colors")
-        );
-
-        style.setPresetId(
-                config.getString("preset-id", null)
-        );
-
-        style.setBold(config.getBoolean("bold", false));
-        style.setItalic(config.getBoolean("italic", false));
-        style.setUnderlined(config.getBoolean("underlined", false));
-        style.setStrikethrough(config.getBoolean("strikethrough", false));
-
-        return style;
-    }
-
-    private File getFile(UUID uuid) {
-        return new File(folder, uuid.toString() + ".yml");
-    }
+  }
+  private Path file(UUID uuid) { return folder.resolve(uuid + ".yml"); }
 }

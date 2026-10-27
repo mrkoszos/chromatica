@@ -5,19 +5,18 @@ import com.mrkoszos.chromatica.model.NameStyle;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.List;
-
 public class FormattingMenu {
 
-  public static final String TITLE = "Formatting";
+  public static final net.kyori.adventure.text.Component TITLE =
+      net.kyori.adventure.text.Component.text("Formatting");
 
+  public static final int BACK_SLOT = 22;
   private final Chromatica plugin;
 
   public FormattingMenu(Chromatica plugin) {
@@ -25,10 +24,15 @@ public class FormattingMenu {
   }
 
   public void open(Player player) {
+    Inventory inventory = GuiUtils.inventory(plugin, 27, TITLE, "FormattingMenu");
+    refresh(player, inventory);
+    GuiUtils.open(player, inventory);
+  }
+
+  public void refresh(Player player, Inventory inventory) {
+    inventory.clear();
 
     NameStyle style = plugin.getNameStyleManager().getStyle(player.getUniqueId());
-
-    Inventory inventory = plugin.getServer().createInventory(null, 27, TITLE);
 
     /*
      * =========================
@@ -36,19 +40,16 @@ public class FormattingMenu {
      * =========================
      */
 
-    Component preview = plugin.getNameRenderer().render(player.getName(), style);
+    Component preview =
+        plugin
+            .getNameRenderer()
+            .render(player.getName(), style, player.hasPermission("chromatica.format.scramble"));
 
-    ItemStack previewItem = new ItemStack(Material.ENDER_EYE);
+    ItemStack previewItem = GuiHeads.playerHead(player, Material.ENDER_EYE);
 
     ItemMeta previewMeta = previewItem.getItemMeta();
 
     previewMeta.displayName(preview);
-
-    previewMeta.lore(
-        List.of(
-            Component.text("Current name preview.")
-                .color(NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false)));
 
     previewItem.setItemMeta(previewMeta);
 
@@ -60,7 +61,7 @@ public class FormattingMenu {
      * =========================
      */
 
-    inventory.setItem(10, createToggleItem(Material.GOLD_INGOT, "Bold", style.isBold()));
+    inventory.setItem(11, createToggleItem(Material.MACE, "Bold", style.isBold()));
 
     /*
      * =========================
@@ -68,7 +69,12 @@ public class FormattingMenu {
      * =========================
      */
 
-    inventory.setItem(12, createToggleItem(Material.WRITABLE_BOOK, "Italic", style.isItalic()));
+    inventory.setItem(
+        12,
+        createToggleItem(
+            style.isItalic() ? Material.WRITTEN_BOOK : Material.WRITABLE_BOOK,
+            "Italic",
+            style.isItalic()));
 
     /*
      * =========================
@@ -76,7 +82,7 @@ public class FormattingMenu {
      * =========================
      */
 
-    inventory.setItem(14, createToggleItem(Material.PAPER, "Underline", style.isUnderlined()));
+    inventory.setItem(15, createToggleItem(Material.STICK, "Underline", style.isUnderlined()));
 
     /*
      * =========================
@@ -85,7 +91,7 @@ public class FormattingMenu {
      */
 
     inventory.setItem(
-        16, createToggleItem(Material.IRON_SWORD, "Strikethrough", style.isStrikethrough()));
+        14, createToggleItem(Material.SHEARS, "Strikethrough", style.isStrikethrough()));
 
     /*
      * =========================
@@ -94,9 +100,10 @@ public class FormattingMenu {
      */
 
     inventory.setItem(
-        22,
-        createItem(
-            Material.BARRIER, ChatColor.RED + "Back", ChatColor.GRAY + "Return to the main menu."));
+        BACK_SLOT,
+        GuiUtils.item(
+            Material.BARRIER,
+            GuiUtils.text("Back", net.kyori.adventure.text.format.NamedTextColor.RED)));
 
     /*
      * =========================
@@ -104,9 +111,13 @@ public class FormattingMenu {
      * =========================
      */
 
+    inventory.setItem(
+        13,
+        createToggleItem(
+            Material.BRUSH,
+            "Scramble",
+            style.isScramble() && player.hasPermission("chromatica.format.scramble")));
     GuiUtils.fillEmptySlots(inventory, plugin);
-
-    player.openInventory(inventory);
   }
 
   private ItemStack createToggleItem(Material material, String name, boolean enabled) {
@@ -115,7 +126,8 @@ public class FormattingMenu {
 
     ItemMeta meta = item.getItemMeta();
 
-    Component displayName = Component.text(name).decoration(TextDecoration.ITALIC, false);
+    Component displayName =
+        Component.text(name, NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false);
 
     if (enabled) {
 
@@ -124,44 +136,7 @@ public class FormattingMenu {
 
     meta.displayName(displayName);
 
-    if (enabled) {
-
-      meta.lore(
-          List.of(
-              Component.text("Enabled", NamedTextColor.GREEN)
-                  .decoration(TextDecoration.ITALIC, false),
-              Component.empty(),
-              Component.text("Click to disable.", NamedTextColor.YELLOW)
-                  .decoration(TextDecoration.ITALIC, false)));
-
-    } else {
-
-      meta.lore(
-          List.of(
-              Component.text("Disabled", NamedTextColor.RED)
-                  .decoration(TextDecoration.ITALIC, false),
-              Component.empty(),
-              Component.text("Click to enable.", NamedTextColor.YELLOW)
-                  .decoration(TextDecoration.ITALIC, false)));
-    }
-
-    item.setItemMeta(meta);
-
-    return item;
-  }
-
-  private ItemStack createItem(Material material, String name, String... lore) {
-
-    ItemStack item = new ItemStack(material);
-
-    ItemMeta meta = item.getItemMeta();
-
-    meta.setDisplayName(name);
-
-    if (lore.length > 0) {
-      meta.setLore(List.of(lore));
-    }
-
+    meta.setEnchantmentGlintOverride(enabled);
     item.setItemMeta(meta);
 
     return item;

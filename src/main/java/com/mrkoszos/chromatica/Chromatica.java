@@ -1,5 +1,6 @@
 package com.mrkoszos.chromatica;
 
+import com.mrkoszos.chromatica.chat.ChromaticaChatListener;
 import com.mrkoszos.chromatica.command.ChromaticaCommand;
 import com.mrkoszos.chromatica.gui.*;
 import com.mrkoszos.chromatica.manager.BackgroundManager;
@@ -8,126 +9,203 @@ import com.mrkoszos.chromatica.manager.NameStyleManager;
 import com.mrkoszos.chromatica.manager.PresetManager;
 import com.mrkoszos.chromatica.placeholder.ChromaticaExpansion;
 import com.mrkoszos.chromatica.renderer.NameRenderer;
-import com.mrkoszos.chromatica.chat.ChromaticaChatListener;
-import org.bukkit.plugin.java.JavaPlugin;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public final class Chromatica extends JavaPlugin {
 
-    private NameStyleManager nameStyleManager;
-    private NameRenderer nameRenderer;
+  private GuiSounds guiSounds;
+  private GuiBranding guiBranding;
+  private final GuiAnvils guiAnvils = new GuiAnvils();
 
-    private final ColorSelectorSession colorSelectorSession =
-            new ColorSelectorSession();
+  public GuiAnvils getGuiAnvils() {
+    return guiAnvils;
+  }
 
-    private final GradientSession gradientSession =
-            new GradientSession();
+  public GuiSounds getGuiSounds() {
+    return guiSounds;
+  }
 
-    private final Map<UUID, Integer> gradientColorSelection =
-            new HashMap<>();
+  public GuiBranding getGuiBranding() {
+    return guiBranding;
+  }
 
-    private PresetManager presetManager;
+  private boolean expandedGradient;
 
-    private FavoriteManager favoriteManager;
+  public boolean isExpandedGradient() {
+    return expandedGradient;
+  }
 
-    private BackgroundManager backgroundManager;
+  private volatile boolean chatFormattingEnabled;
+  private volatile boolean communityPresetsEnabled = true;
+  private volatile int communityPresetLimit = 10;
+  private com.mrkoszos.chromatica.manager.CommunityPresetManager communityPresetManager;
 
-    @Override
-    public void onEnable() {
+  public boolean isCommunityPresetsEnabled() {
+    return communityPresetsEnabled;
+  }
 
-        this.backgroundManager = new BackgroundManager(this);
-        this.nameStyleManager = new NameStyleManager(this);
-        nameRenderer = new NameRenderer();
-        this.presetManager = new PresetManager(this);
-        this.favoriteManager = new FavoriteManager();
+  public int getCommunityPresetLimit() {
+    return communityPresetLimit;
+  }
 
-        getCommand("chromatica").setExecutor(
-                new ChromaticaCommand(this)
-        );
+  public com.mrkoszos.chromatica.manager.CommunityPresetManager getCommunityPresetManager() {
+    return communityPresetManager;
+  }
 
-        getServer().getPluginManager().registerEvents(
-                new ChromaticaMenuListener(this),
-                this
-        );
+  public boolean isChatFormattingEnabled() {
+    return chatFormattingEnabled;
+  }
 
-        getServer().getPluginManager().registerEvents(
-                new ChromaticaChatListener(this),
-                this
-        );
+  private boolean configReloadSuccessful = true;
+  private boolean configLoaded;
 
-        getServer().getPluginManager().registerEvents(
-                new ColorMenuListener(this),
-                this
-        );
+  public boolean wasConfigReloadSuccessful() {
+    return configReloadSuccessful;
+  }
 
-        getServer().getPluginManager().registerEvents(
-                new ColorSelectorListener(this),
-                this
-        );
-
-        getServer().getPluginManager().registerEvents(
-                new GradientMenuListener(this),
-                this
-        );
-
-        getServer().getPluginManager().registerEvents(
-                new FormattingMenuListener(this),
-                this
-        );
-
-        if (getServer().getPluginManager()
-                .getPlugin("PlaceholderAPI") != null) {
-
-            new ChromaticaExpansion(this).register();
+  @Override
+  public void reloadConfig() {
+    java.io.File file = new java.io.File(getDataFolder(), "config.yml");
+    if (file.exists()) {
+      try {
+        org.bukkit.configuration.file.YamlConfiguration check =
+            new org.bukkit.configuration.file.YamlConfiguration();
+        check.load(file);
+      } catch (Exception exception) {
+        configReloadSuccessful = false;
+        getLogger()
+            .warning(
+                "Cannot reload config.yml; keeping previous settings: " + exception.getMessage());
+        if (!configLoaded) {
+          super.reloadConfig();
+          configLoaded = true;
+          applyRuntimeSettings();
         }
+        return;
+      }
+    }
+    configReloadSuccessful = true;
+    super.reloadConfig();
+    configLoaded = true;
+    applyRuntimeSettings();
+  }
 
-        getServer().getPluginManager().registerEvents(
-                new FavoritesMenuListener(this),
-                this
-        );
+  private void applyRuntimeSettings() {
+    if (guiSounds != null) guiSounds.reload(getConfig(), getLogger());
+    if (guiBranding != null) guiBranding.reload(getConfig());
+    String layout = getConfig().getString("gui.gradient.layout", "compact");
+    expandedGradient = GradientMenu.expandedLayout(layout, getLogger());
+    chatFormattingEnabled = getConfig().getBoolean("chat-formatting-enabled", false);
+    communityPresetsEnabled = getConfig().getBoolean("community-presets.enabled", true);
+    communityPresetLimit = Math.max(0, getConfig().getInt("community-presets.max-per-player", 10));
+  }
 
-        getServer().getPluginManager().registerEvents(new PresetMenuListener(this), this);
+  private NameStyleManager nameStyleManager;
+  private NameRenderer nameRenderer;
 
-        getLogger().info("Chromatica has been enabled!");
+  private final ColorSelectorSession colorSelectorSession = new ColorSelectorSession();
+
+  private final GradientSession gradientSession = new GradientSession();
+
+  private final Map<UUID, Integer> gradientColorSelection = new HashMap<>();
+
+  private PresetManager presetManager;
+
+  private FavoriteManager favoriteManager;
+
+  private BackgroundManager backgroundManager;
+  private final java.util.Set<UUID> hexPlayers = new java.util.HashSet<>();
+
+  public java.util.Set<UUID> getHexPlayers() {
+    return hexPlayers;
+  }
+
+  @Override
+  public void onEnable() {
+
+    this.guiSounds = new GuiSounds();
+    this.guiBranding = new GuiBranding();
+    this.backgroundManager = new BackgroundManager(this);
+    this.nameStyleManager = new NameStyleManager(this);
+    getServer()
+        .getOnlinePlayers()
+        .forEach(player -> nameStyleManager.getStyle(player.getUniqueId()));
+    nameRenderer = new NameRenderer();
+    this.presetManager = new PresetManager(this);
+    this.favoriteManager = new FavoriteManager(getDataFolder(), getLogger());
+    this.communityPresetManager =
+        new com.mrkoszos.chromatica.manager.CommunityPresetManager(getDataFolder(), getLogger());
+
+    getCommand("chromatica").setExecutor(new ChromaticaCommand(this));
+
+    getServer().getPluginManager().registerEvents(new ChromaticaMenuListener(this), this);
+
+    getServer().getPluginManager().registerEvents(new ChromaticaChatListener(this), this);
+
+    getServer().getPluginManager().registerEvents(new ColorMenuListener(this), this);
+
+    getServer().getPluginManager().registerEvents(new ColorSelectorListener(this), this);
+
+    getServer().getPluginManager().registerEvents(new GradientMenuListener(this), this);
+
+    getServer().getPluginManager().registerEvents(new FormattingMenuListener(this), this);
+
+    if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+
+      new ChromaticaExpansion(this).register();
     }
 
-    @Override
-    public void onDisable() {
-        getLogger().info("Chromatica has been disabled!");
-    }
+    getServer().getPluginManager().registerEvents(new FavoritesMenuListener(this), this);
 
-    public NameStyleManager getNameStyleManager() {
-        return nameStyleManager;
-    }
+    getServer().getPluginManager().registerEvents(new PresetMenuListener(this), this);
+    getServer().getPluginManager().registerEvents(new PresetBrowserListener(this), this);
 
-    public NameRenderer getNameRenderer() {
-        return nameRenderer;
-    }
+    getServer().getPluginManager().registerEvents(new GuiSafetyListener(this), this);
+    getServer().getPluginManager().registerEvents(new InlineConfirmation(this), this);
+    getServer().getPluginManager().registerEvents(guiAnvils, this);
+    getLogger().info("Chromatica has been enabled!");
+  }
 
-    public ColorSelectorSession getColorSelectorSession() {
-        return colorSelectorSession;
-    }
+  @Override
+  public void onDisable() {
+    InlineConfirmation.clear(this);
+    guiAnvils.clear();
+    GuiHeads.clear(this);
+    getLogger().info("Chromatica has been disabled!");
+  }
 
-    public GradientSession getGradientSession() {
-        return gradientSession;
-    }
+  public NameStyleManager getNameStyleManager() {
+    return nameStyleManager;
+  }
 
-    public Map<UUID, Integer> getGradientColorSelection() {
-        return gradientColorSelection;
-    }
+  public NameRenderer getNameRenderer() {
+    return nameRenderer;
+  }
 
-    public PresetManager getPresetManager() {
-        return presetManager;
-    }
+  public ColorSelectorSession getColorSelectorSession() {
+    return colorSelectorSession;
+  }
 
-    public FavoriteManager getFavoriteManager() {
-        return favoriteManager;
-    }
+  public GradientSession getGradientSession() {
+    return gradientSession;
+  }
 
-    public BackgroundManager getBackgroundManager() {
-        return backgroundManager;
-    }
+  public Map<UUID, Integer> getGradientColorSelection() {
+    return gradientColorSelection;
+  }
+
+  public PresetManager getPresetManager() {
+    return presetManager;
+  }
+
+  public FavoriteManager getFavoriteManager() {
+    return favoriteManager;
+  }
+
+  public BackgroundManager getBackgroundManager() {
+    return backgroundManager;
+  }
 }

@@ -19,6 +19,8 @@ commands:
     aliases: [chroma, ch, namecolor, nc]
 
 permissions:
+  # Keep public features true; every restricted/future node must default to op.
+  # Use Bukkit permission checks so explicit denials also apply to operators.
   chromatica.use:
     description: Allows the player to use Chromatica.
     default: true
@@ -31,6 +33,9 @@ permissions:
   chromatica.set:
     description: Allows setting another player's preset.
     default: op
+  chromatica.community.admin:
+    description: Allows deleting Community Presets published by any player.
+    default: op
   chromatica.admin:
     description: Grants all Chromatica admin permissions.
     default: op
@@ -38,3 +43,8 @@ permissions:
       chromatica.reload: true
       chromatica.reset: true
       chromatica.set: true
+      chromatica.community.admin: true
+
+  chromatica.format.scramble:
+    description: Allows obfuscated name formatting
+    default: op

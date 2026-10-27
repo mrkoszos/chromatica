@@ -1,18 +1,17 @@
 package com.mrkoszos.chromatica.gui;
 
 import com.mrkoszos.chromatica.Chromatica;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-
-import java.util.List;
 
 public class ColorMenu {
 
-  public static final String TITLE = "Color";
+  public static final net.kyori.adventure.text.Component TITLE =
+      net.kyori.adventure.text.Component.text("Color");
+
+  public static final int HEX_SLOT = 17;
+  public static final int BACK_SLOT = 22;
 
   private final Chromatica plugin;
 
@@ -22,30 +21,61 @@ public class ColorMenu {
 
   public void open(Player player) {
 
-    Inventory inventory = plugin.getServer().createInventory(null, 27, TITLE);
-
-    inventory.setItem(10, createItem(Material.RED_DYE, ChatColor.RED + "Red"));
-
-    inventory.setItem(11, createItem(Material.ORANGE_DYE, ChatColor.GOLD + "Orange"));
-
-    inventory.setItem(12, createItem(Material.YELLOW_DYE, ChatColor.YELLOW + "Yellow"));
-
-    inventory.setItem(13, createItem(Material.LIME_DYE, ChatColor.GREEN + "Lime"));
-
-    inventory.setItem(14, createItem(Material.CYAN_DYE, ChatColor.AQUA + "Cyan"));
-
-    inventory.setItem(15, createItem(Material.BLUE_DYE, ChatColor.BLUE + "Blue"));
-
-    inventory.setItem(16, createItem(Material.PURPLE_DYE, ChatColor.LIGHT_PURPLE + "Purple"));
+    Inventory inventory = GuiUtils.inventory(plugin, 27, TITLE, "ColorMenu");
 
     inventory.setItem(
-        22,
-        createItem(
-            Material.NETHER_STAR,
-            ChatColor.LIGHT_PURPLE + "Custom Color",
-            ChatColor.GRAY + "Choose a custom HEX color."));
+        10,
+        GuiUtils.item(
+            Material.RED_DYE,
+            GuiUtils.text("Red", net.kyori.adventure.text.format.NamedTextColor.RED)));
 
-    inventory.setItem(26, createItem(Material.BARRIER, ChatColor.RED + "Back"));
+    inventory.setItem(
+        11,
+        GuiUtils.item(
+            Material.ORANGE_DYE,
+            GuiUtils.text("Orange", net.kyori.adventure.text.format.NamedTextColor.GOLD)));
+
+    inventory.setItem(
+        12,
+        GuiUtils.item(
+            Material.YELLOW_DYE,
+            GuiUtils.text("Yellow", net.kyori.adventure.text.format.NamedTextColor.YELLOW)));
+
+    inventory.setItem(
+        13,
+        GuiUtils.item(
+            Material.LIME_DYE,
+            GuiUtils.text("Lime", net.kyori.adventure.text.format.NamedTextColor.GREEN)));
+
+    inventory.setItem(
+        14,
+        GuiUtils.item(
+            Material.CYAN_DYE,
+            GuiUtils.text("Cyan", net.kyori.adventure.text.format.NamedTextColor.AQUA)));
+
+    inventory.setItem(
+        15,
+        GuiUtils.item(
+            Material.BLUE_DYE,
+            GuiUtils.text("Blue", net.kyori.adventure.text.format.NamedTextColor.BLUE)));
+
+    inventory.setItem(
+        16,
+        GuiUtils.item(
+            Material.PURPLE_DYE,
+            GuiUtils.text("Purple", net.kyori.adventure.text.format.NamedTextColor.LIGHT_PURPLE)));
+
+    inventory.setItem(
+        HEX_SLOT,
+        GuiUtils.item(
+            Material.LIME_STAINED_GLASS_PANE,
+            GuiUtils.text("Custom Color", net.kyori.adventure.text.format.NamedTextColor.YELLOW)));
+
+    inventory.setItem(
+        BACK_SLOT,
+        GuiUtils.item(
+            Material.BARRIER,
+            GuiUtils.text("Back", net.kyori.adventure.text.format.NamedTextColor.RED)));
 
     /*
      * =========================
@@ -53,25 +83,22 @@ public class ColorMenu {
      * =========================
      */
 
+    var style = plugin.getNameStyleManager().getStyle(player.getUniqueId());
+    GuiSelection.markColors(
+        inventory,
+        style.getType() == com.mrkoszos.chromatica.model.StyleType.SOLID
+            ? style.getPrimaryColor()
+            : null);
+    var head = GuiHeads.playerHead(player, Material.ENDER_EYE);
+    var meta = head.getItemMeta();
+    meta.displayName(
+        plugin
+            .getNameRenderer()
+            .render(player.getName(), style, player.hasPermission("chromatica.format.scramble")));
+    head.setItemMeta(meta);
+    inventory.setItem(4, head);
     GuiUtils.fillEmptySlots(inventory, plugin);
 
-    player.openInventory(inventory);
-  }
-
-  private ItemStack createItem(Material material, String name, String... lore) {
-
-    ItemStack item = new ItemStack(material);
-
-    ItemMeta meta = item.getItemMeta();
-
-    meta.setDisplayName(name);
-
-    if (lore.length > 0) {
-      meta.setLore(List.of(lore));
-    }
-
-    item.setItemMeta(meta);
-
-    return item;
+    GuiUtils.open(player, inventory);
   }
 }

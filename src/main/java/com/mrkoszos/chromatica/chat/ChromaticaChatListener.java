@@ -11,31 +11,28 @@ import org.bukkit.event.Listener;
 
 public class ChromaticaChatListener implements Listener {
 
-    private final Chromatica plugin;
+  private final Chromatica plugin;
 
-    public ChromaticaChatListener(Chromatica plugin) {
-        this.plugin = plugin;
-    }
+  public ChromaticaChatListener(Chromatica plugin) {
+    this.plugin = plugin;
+  }
 
-    @EventHandler(priority = EventPriority.NORMAL)
-    public void onChat(AsyncChatEvent event) {
+  @EventHandler(priority = EventPriority.NORMAL)
+  public void onChat(AsyncChatEvent event) {
 
-        Player player = event.getPlayer();
+    if (!plugin.isChatFormattingEnabled()) return;
 
-        NameStyle style = plugin
-                .getNameStyleManager()
-                .getStyle(player.getUniqueId());
+    Player player = event.getPlayer();
 
-        Component name = plugin
-                .getNameRenderer()
-                .render(player.getName(), style);
+    NameStyle style = plugin.getNameStyleManager().getSnapshot(player.getUniqueId());
 
-        Component message = event.message();
+    Component name =
+        plugin
+            .getNameRenderer()
+            .render(player.getName(), style, player.hasPermission("chromatica.format.scramble"));
 
-        event.renderer((source, sourceDisplayName, chatMessage, viewer) ->
-                name
-                        .append(Component.text(": "))
-                        .append(chatMessage)
-        );
-    }
+    event.renderer(
+        (source, sourceDisplayName, chatMessage, viewer) ->
+            Component.empty().append(name).append(Component.text(": ")).append(chatMessage));
+  }
 }

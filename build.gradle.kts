@@ -14,6 +14,10 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.2.build.+")
     implementation("net.wesjd:anvilgui:1.10.13-SNAPSHOT")
+    testImplementation("org.mockito:mockito-core:5.24.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("io.papermc.paper:paper-api:26.2.build.+")
     compileOnly("me.clip:placeholderapi:2.11.6")
 }
 
@@ -22,11 +26,12 @@ java {
 }
 
 tasks {
+    test { useJUnitPlatform() }
 
     shadowJar {
         relocate(
             "net.wesjd.anvilgui",
-            "com.mrkoszos.chromify.libs.anvilgui"
+            "com.mrkoszos.chromatica.libs.anvilgui"
         )
     }
 
@@ -44,6 +49,7 @@ tasks {
             "version" to version,
             "description" to project.description
         )
+        inputs.properties(props)
 
         filesMatching("plugin.yml") {
             expand(props)

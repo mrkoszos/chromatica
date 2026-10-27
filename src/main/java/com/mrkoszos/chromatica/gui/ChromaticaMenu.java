@@ -2,8 +2,8 @@ package com.mrkoszos.chromatica.gui;
 
 import com.mrkoszos.chromatica.Chromatica;
 import com.mrkoszos.chromatica.model.NameStyle;
+import java.util.List;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
@@ -12,15 +12,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.List;
-
 public class ChromaticaMenu {
 
-  public static final Component TITLE =
-      Component.text("ℹ Chromatica")
-          .decoration(TextDecoration.BOLD, false)
-          .decoration(TextDecoration.ITALIC, false);
+  public static final Component TITLE = Component.text("Chromatica");
 
+  public static final int CREDIT_SLOT = 0;
   private static final int PREVIEW_SLOT = 13;
   private static final int COLOR_SLOT = 19;
   private static final int GRADIENT_SLOT = 20;
@@ -36,10 +32,16 @@ public class ChromaticaMenu {
   }
 
   public void open(Player player) {
+    Inventory inventory =
+        GuiUtils.inventory(plugin, 45, GuiBranding.title(plugin), "ChromaticaMenu");
+    refresh(player, inventory);
+    GuiUtils.open(player, inventory);
+  }
+
+  public void refresh(Player player, Inventory inventory) {
+    inventory.clear();
 
     NameStyle style = plugin.getNameStyleManager().getStyle(player.getUniqueId());
-
-    Inventory inventory = plugin.getServer().createInventory(null, 45, TITLE);
 
     /*
      * =========================
@@ -47,19 +49,16 @@ public class ChromaticaMenu {
      * =========================
      */
 
-    Component preview = plugin.getNameRenderer().render(player.getName(), style);
+    Component preview =
+        plugin
+            .getNameRenderer()
+            .render(player.getName(), style, player.hasPermission("chromatica.format.scramble"));
 
-    ItemStack previewItem = new ItemStack(Material.ENDER_EYE);
+    ItemStack previewItem = GuiHeads.playerHead(player, Material.ENDER_EYE);
 
     ItemMeta previewMeta = previewItem.getItemMeta();
 
     previewMeta.displayName(preview);
-
-    previewMeta.lore(
-        List.of(
-            Component.text("Your current name style.")
-                .color(TextColor.fromHexString("#AAAAAA"))
-                .decoration(TextDecoration.ITALIC, false)));
 
     previewItem.setItemMeta(previewMeta);
 
@@ -76,12 +75,7 @@ public class ChromaticaMenu {
             .color(TextColor.fromHexString("#FF00AA"))
             .decoration(TextDecoration.ITALIC, false);
 
-    Component colorLore =
-        Component.text("Choose a custom name color.")
-            .color(TextColor.fromHexString("#AAAAAA"))
-            .decoration(TextDecoration.ITALIC, false);
-
-    inventory.setItem(COLOR_SLOT, createItem(Material.MAGENTA_DYE, colorName, colorLore));
+    inventory.setItem(COLOR_SLOT, GuiUtils.item(Material.MAGENTA_DYE, colorName));
 
     /*
      * =========================
@@ -91,13 +85,7 @@ public class ChromaticaMenu {
 
     Component gradientName = createGradientText("Gradient", "#FCFEA9", "#33775A");
 
-    Component gradientLore =
-        Component.text("Create a multi-color gradient.")
-            .color(TextColor.fromHexString("#AAAAAA"))
-            .decoration(TextDecoration.ITALIC, false);
-
-    inventory.setItem(
-        GRADIENT_SLOT, createItem(Material.EXPERIENCE_BOTTLE, gradientName, gradientLore));
+    inventory.setItem(GRADIENT_SLOT, GuiUtils.item(Material.EXPERIENCE_BOTTLE, gradientName));
 
     /*
      * =========================
@@ -110,13 +98,7 @@ public class ChromaticaMenu {
             .color(TextColor.fromHexString("#FFD83D"))
             .decoration(TextDecoration.ITALIC, false);
 
-    Component presetsLore =
-        Component.text("Choose from predefined styles.")
-            .color(TextColor.fromHexString("#AAAAAA"))
-            .decoration(TextDecoration.ITALIC, false);
-
-    inventory.setItem(
-        PRESETS_SLOT, createItem(Material.PRIZE_POTTERY_SHERD, presetsName, presetsLore));
+    inventory.setItem(PRESETS_SLOT, GuiUtils.item(Material.PRIZE_POTTERY_SHERD, presetsName));
 
     /*
      * =========================
@@ -129,14 +111,7 @@ public class ChromaticaMenu {
             .color(TextColor.fromHexString("#55FF55"))
             .decoration(TextDecoration.ITALIC, false);
 
-    Component favoritesLore =
-        Component.text("Save and quickly apply your favorite styles.")
-            .color(TextColor.fromHexString("#AAAAAA"))
-            .decoration(TextDecoration.ITALIC, false);
-
-    inventory.setItem(
-            FAVORITES_SLOT,
-            createItem(Material.GLOW_ITEM_FRAME, favoritesName, favoritesLore));
+    inventory.setItem(FAVORITES_SLOT, GuiUtils.item(Material.GLOW_ITEM_FRAME, favoritesName));
 
     /*
      * =========================
@@ -149,19 +124,7 @@ public class ChromaticaMenu {
             .color(TextColor.fromHexString("#9B7BFF"))
             .decoration(TextDecoration.ITALIC, false);
 
-    Component formattingLore1 =
-        Component.text("Bold, italic, underline")
-            .color(TextColor.fromHexString("#AAAAAA"))
-            .decoration(TextDecoration.ITALIC, false);
-
-    Component formattingLore2 =
-        Component.text("and strikethrough.")
-            .color(TextColor.fromHexString("#AAAAAA"))
-            .decoration(TextDecoration.ITALIC, false);
-
-    inventory.setItem(
-        FORMATTING_SLOT,
-        createItem(Material.WRITABLE_BOOK, formattingName, formattingLore1, formattingLore2));
+    inventory.setItem(FORMATTING_SLOT, GuiUtils.item(Material.WRITABLE_BOOK, formattingName));
 
     /*
      * =========================
@@ -175,11 +138,11 @@ public class ChromaticaMenu {
             .decoration(TextDecoration.ITALIC, false);
 
     Component resetLore =
-        Component.text("Reset your name style.")
+        Component.text("Restore default style.")
             .color(TextColor.fromHexString("#AAAAAA"))
             .decoration(TextDecoration.ITALIC, false);
 
-    inventory.setItem(RESET_SLOT, createItem(Material.MILK_BUCKET, resetName, resetLore));
+    inventory.setItem(RESET_SLOT, GuiUtils.item(Material.MILK_BUCKET, resetName, resetLore));
 
     /*
      * =========================
@@ -187,9 +150,15 @@ public class ChromaticaMenu {
      * =========================
      */
 
+    GuiUtils.mark(
+        inventory, COLOR_SLOT, style.getType() == com.mrkoszos.chromatica.model.StyleType.SOLID);
+    GuiUtils.mark(
+        inventory,
+        GRADIENT_SLOT,
+        style.getType() == com.mrkoszos.chromatica.model.StyleType.GRADIENT);
+    inventory.setItem(44, GuiUtils.closeItem());
     GuiUtils.fillEmptySlots(inventory, plugin);
-
-    player.openInventory(inventory);
+    applyCredit(inventory);
   }
 
   /*
@@ -197,6 +166,20 @@ public class ChromaticaMenu {
    *       GRADIENT TEXT
    * =========================
    */
+
+  void applyCredit(Inventory inventory) {
+    if (plugin.getGuiBranding() != null && !plugin.getGuiBranding().showCredit()) return;
+    ItemStack pane = inventory.getItem(CREDIT_SLOT);
+    if (pane == null) return;
+    ItemMeta meta = pane.getItemMeta();
+    meta.setHideTooltip(false);
+    meta.lore(
+        List.of(
+            GuiUtils.text(
+                "Powered by Chromatica", net.kyori.adventure.text.format.NamedTextColor.GRAY)));
+    pane.setItemMeta(meta);
+    inventory.setItem(CREDIT_SLOT, pane);
+  }
 
   private Component createGradientText(String text, String startHex, String endHex) {
 
@@ -242,20 +225,4 @@ public class ChromaticaMenu {
    * =========================
    */
 
-  private ItemStack createItem(Material material, Component name, Component... lore) {
-
-    ItemStack item = new ItemStack(material);
-
-    ItemMeta meta = item.getItemMeta();
-
-    meta.displayName(name.decoration(TextDecoration.ITALIC, false));
-
-    if (lore.length > 0) {
-      meta.lore(List.of(lore));
-    }
-
-    item.setItemMeta(meta);
-
-    return item;
-  }
 }

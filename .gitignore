@@ -32,3 +32,34 @@ neoforge/runs
 
 # Kotlin compiler working directory
 .kotlin
+
+# Runtime diagnostics, temporary files, and local source archives
+*.log
+*.tmp
+*.temp
+*.hprof
+*.jfr
+hs_err_pid*
+replay_pid*
+*.zip
+*.7z
+*.tar
+*.gz
+*.jar
+# Gradle Wrapper is source infrastructure.
+!gradle/wrapper/gradle-wrapper.jar
+
+/*VALIDATION*.md
+/COMMUNITY_PRESETS.md
+
+# Local development and validation reports
+/CLEANUP_VALIDATION.md
+/COMMUNITY_PRESETS.md
+/CONFIRMATION_VALIDATION.md
+/FINAL_BROWSER_VALIDATION_HU.md
+/FINAL_EXPANDED_GRADIENT_VALIDATION_HU.md
+/FINAL_GUI_VALIDATION_HU.md
+/FINAL_PRESETS_VALIDATION_HU.md
+/GUI_POLISH_VALIDATION.md
+/GUI_REDESIGN_VALIDATION.md
+/RELEASE_1.3_VALIDATION.md

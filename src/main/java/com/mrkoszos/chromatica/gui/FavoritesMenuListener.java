@@ -11,136 +11,117 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 
 public class FavoritesMenuListener implements Listener {
 
-    private static final int BACK_SLOT = 21;
-    private static final int CLOSE_SLOT = 23;
+  private final Chromatica plugin;
 
-    private final Chromatica plugin;
+  public FavoritesMenuListener(Chromatica plugin) {
+    this.plugin = plugin;
+  }
 
-    public FavoritesMenuListener(Chromatica plugin) {
-        this.plugin = plugin;
+  @EventHandler
+  public void onInventoryClick(InventoryClickEvent event) {
+
+    if (!GuiUtils.isMenu(event.getView().getTopInventory(), "FavoritesMenu")) {
+      return;
     }
 
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
+    event.setCancelled(true);
+    if (!GuiUtils.isActionClick(event) && !InlineConfirmation.isDrop(event)) return;
 
-        if (!event.getView().getTitle().equals(FavoritesMenu.TITLE)) {
-            return;
-        }
-
-        event.setCancelled(true);
-
-        if (!(event.getWhoClicked() instanceof Player player)) {
-            return;
-        }
-
-        if (event.getCurrentItem() == null) {
-            return;
-        }
-
-        int slot = event.getRawSlot();
-
-        /*
-         * =========================
-         *            BACK
-         * =========================
-         */
-
-        if (slot == BACK_SLOT) {
-            player.closeInventory();
-            new ChromaticaMenu(plugin).open(player);
-            return;
-        }
-
-        /*
-         * =========================
-         *           CLOSE
-         * =========================
-         */
-
-        if (slot == CLOSE_SLOT) {
-            player.closeInventory();
-            return;
-        }
-
-        /*
-         * =========================
-         *       FAVORITE SLOTS
-         * =========================
-         */
-
-        for (int i = 0; i < FavoritesMenu.FAVORITE_SLOTS.length; i++) {
-
-            if (slot != FavoritesMenu.FAVORITE_SLOTS[i]) {
-                continue;
-            }
-
-            handleFavoriteClick(player, i, event.isRightClick());
-            return;
-        }
+    if (!(event.getWhoClicked() instanceof Player player)) {
+      return;
     }
 
-    private void handleFavoriteClick(Player player, int index, boolean rightClick) {
+    if (!GuiUtils.allowed(plugin, player)) return;
 
-        NameStyle existing = plugin.getFavoriteManager()
-                .getFavorite(player.getUniqueId(), index);
+    if (event.getCurrentItem() == null) {
+      return;
+    }
 
-        /*
-         * =========================
-         *      EMPTY SLOT -> SAVE
-         * =========================
-         */
+    int slot = event.getRawSlot();
 
-        if (existing == null) {
+    /*
+     * =========================
+     *            BACK
+     * =========================
+     */
 
-            NameStyle current = plugin.getNameStyleManager()
-                    .getStyle(player.getUniqueId());
+    if (slot == FavoritesMenu.BACK_SLOT) {
+      if (InlineConfirmation.isDrop(event)) return;
+      GuiUtils.navigate(plugin, player, () -> new ChromaticaMenu(plugin).open(player));
+      return;
+    }
 
-            plugin.getFavoriteManager().setFavorite(player.getUniqueId(), index, current);
+    /*
+     * =========================
+     *       FAVORITE SLOTS
+     * =========================
+     */
 
-            player.sendActionBar(
-                    Component.text(
-                            "Saved your current style to slot " + (index + 1) + ".",
-                            NamedTextColor.GREEN
-                    )
-            );
+    for (int i = 0; i < FavoritesMenu.FAVORITE_SLOTS.length; i++) {
 
-            new FavoritesMenu(plugin).open(player);
-            return;
-        }
+      if (slot != FavoritesMenu.FAVORITE_SLOTS[i]) {
+        continue;
+      }
 
-        /*
-         * =========================
-         *   RIGHT CLICK -> REMOVE
-         * =========================
-         */
+      if (InlineConfirmation.isDrop(event)) {
+        NameStyle selected = plugin.getFavoriteManager().getFavorite(player.getUniqueId(), i);
+        if (selected != null) InlineConfirmation.favorite(plugin, player, i, selected);
+      } else if (event.isLeftClick()) handleFavoriteClick(player, i, false);
+      return;
+    }
+  }
 
-        if (rightClick) {
+  private void handleFavoriteClick(Player player, int index, boolean rightClick) {
 
-            plugin.getFavoriteManager().removeFavorite(player.getUniqueId(), index);
+    NameStyle existing = plugin.getFavoriteManager().getFavorite(player.getUniqueId(), index);
 
-            player.sendActionBar(
-                    Component.text(
-                            "Favorite slot " + (index + 1) + " cleared.",
-                            NamedTextColor.YELLOW
-                    )
-            );
+    /*
+     * =========================
+     *      EMPTY SLOT -> SAVE
+     * =========================
+     */
 
-            new FavoritesMenu(plugin).open(player);
-            return;
-        }
+    if (existing == null) {
 
-        /*
-         * =========================
-         *   LEFT CLICK -> APPLY
-         * =========================
-         */
+      NameStyle current = plugin.getNameStyleManager().getStyle(player.getUniqueId());
 
-        plugin.getNameStyleManager().setStyle(player.getUniqueId(), existing.copy());
-
+      if (!plugin.getFavoriteManager().setFavorite(player.getUniqueId(), index, current)) {
+        GuiSounds.play(plugin, player, GuiSounds.Event.ERROR);
         player.sendActionBar(
-                Component.text("Favorite applied.", NamedTextColor.GREEN)
-        );
+            Component.text("Could not save favorite. Please try again.", NamedTextColor.RED));
+        return;
+      }
 
-        player.closeInventory();
+      GuiSelection.remember(
+          plugin, player.getUniqueId(), "favorite", String.valueOf(index), current);
+      GuiSounds.play(plugin, player, GuiSounds.Event.CONFIRM);
+      player.sendActionBar(
+          Component.text(
+              "Saved your current style to slot " + (index + 1) + ".", NamedTextColor.GREEN));
+
+      new FavoritesMenu(plugin).refresh(player, player.getOpenInventory().getTopInventory());
+      return;
     }
+
+    /*
+     * =========================
+     *   RIGHT CLICK -> REMOVE
+     * =========================
+     */
+
+    /*
+     * =========================
+     *   LEFT CLICK -> APPLY
+     * =========================
+     */
+
+    if (!GuiUtils.persist(plugin, player, existing.copy())) return;
+    GuiSelection.remember(
+        plugin, player.getUniqueId(), "favorite", String.valueOf(index), existing);
+    GuiSounds.play(plugin, player, GuiSounds.Event.CONFIRM);
+
+    player.sendActionBar(Component.text("Favorite applied.", NamedTextColor.GREEN));
+
+    new FavoritesMenu(plugin).refresh(player, player.getOpenInventory().getTopInventory());
+  }
 }

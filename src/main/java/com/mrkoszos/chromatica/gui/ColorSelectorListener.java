@@ -1,16 +1,14 @@
 package com.mrkoszos.chromatica.gui;
 
 import com.mrkoszos.chromatica.Chromatica;
-import com.mrkoszos.chromatica.model.NameStyle;
 import com.mrkoszos.chromatica.model.StyleType;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-
-import java.util.List;
 
 public class ColorSelectorListener implements Listener {
 
@@ -23,62 +21,73 @@ public class ColorSelectorListener implements Listener {
   @EventHandler
   public void onInventoryClick(InventoryClickEvent event) {
 
-    if (!event.getView().getTitle().equals(ColorSelectorMenu.TITLE)) {
+    if (!GuiUtils.isMenu(event.getView().getTopInventory(), "ColorSelectorMenu")) {
       return;
     }
 
     event.setCancelled(true);
+    if (!GuiUtils.isActionClick(event)) return;
+    if (event.getRawSlot() == ColorSelectorMenu.CLOSE_SLOT) {
+      plugin
+          .getServer()
+          .getScheduler()
+          .runTask(plugin, () -> event.getWhoClicked().closeInventory());
+      return;
+    }
 
     if (!(event.getWhoClicked() instanceof Player player)) {
       return;
     }
 
+    if (!GuiUtils.allowed(plugin, player)) return;
+
     if (event.getCurrentItem() == null) {
       return;
     }
 
-    Material material = event.getCurrentItem().getType();
-
-    String hex =
-        switch (material) {
-          case RED_DYE -> "#FF5555";
-          case ORANGE_DYE -> "#FFAA00";
-          case YELLOW_DYE -> "#FFFF55";
-          case LIME_DYE -> "#55FF55";
-          case CYAN_DYE -> "#55FFFF";
-          case BLUE_DYE -> "#5555FF";
-          case PURPLE_DYE -> "#AA55FF";
-
-          default -> null;
-        };
+    String hex = GuiSelection.paletteHex(event.getRawSlot());
 
     if (hex != null) {
 
-      applyColor(player, hex);
+      applyColor(player, hex, false);
 
       return;
     }
 
-    if (material == Material.NETHER_STAR) {
+    if (event.getRawSlot() == ColorSelectorMenu.HEX_SLOT) {
+      GuiSounds.play(plugin, player, GuiSounds.Event.NAVIGATE);
 
-      player.closeInventory();
-
-      new HexColorMenu(plugin).open(player, hexColor -> applyColor(player, hexColor));
+      plugin
+          .getServer()
+          .getScheduler()
+          .runTask(
+              plugin,
+              () ->
+                  new HexColorMenu(plugin).open(player, hexColor -> applyColor(player, hexColor, true)));
 
       return;
     }
 
-    if (material == Material.BARRIER) {
-
+    if (event.getRawSlot() == ColorSelectorMenu.BACK_SLOT) {
+      GuiSounds.play(plugin, player, GuiSounds.Event.NAVIGATE);
+      ColorSelectionContext context = plugin.getColorSelectorSession().get(player.getUniqueId());
       plugin.getColorSelectorSession().remove(player.getUniqueId());
-
-      player.closeInventory();
-
-      new GradientMenu(plugin).open(player);
+      plugin.getGradientColorSelection().remove(player.getUniqueId());
+      plugin
+          .getServer()
+          .getScheduler()
+          .runTask(
+              plugin,
+              () -> {
+                if (context == ColorSelectionContext.GRADIENT)
+                  new GradientMenu(plugin).open(player);
+                else new ColorMenu(plugin).open(player);
+              });
     }
   }
 
-  private void applyColor(Player player, String hex) {
+  private void applyColor(Player player, String hex, boolean custom) {
+    if (!GuiUtils.allowed(plugin, player)) return;
 
     ColorSelectionContext context = plugin.getColorSelectorSession().get(player.getUniqueId());
 
@@ -86,9 +95,19 @@ public class ColorSelectorListener implements Listener {
       return;
     }
 
-    NameStyle style = plugin.getNameStyleManager().getStyle(player.getUniqueId());
-
     switch (context) {
+      case SOLID -> {
+        var style = plugin.getNameStyleManager().getStyle(player.getUniqueId());
+        style.setType(StyleType.SOLID);
+        style.setPresetId(null);
+        style.setPrimaryColor(hex);
+        if (!GuiUtils.persist(plugin, player, style)) return;
+        GuiSelection.clear(plugin, player.getUniqueId());
+        GuiSounds.play(plugin, player, GuiSounds.Event.CONFIRM);
+        player.sendActionBar(
+            Component.text("Your name color has been changed.", NamedTextColor.GREEN));
+        plugin.getServer().getScheduler().runTask(plugin, () -> new ColorMenu(plugin).open(player));
+      }
       case GRADIENT -> {
         Integer index = plugin.getGradientColorSelection().get(player.getUniqueId());
 
@@ -96,31 +115,23 @@ public class ColorSelectorListener implements Listener {
           return;
         }
 
+        var colors = plugin.getGradientSession().get(player.getUniqueId());
+        if (colors == null || index < 0 || index >= colors.size()) {
+          GuiSounds.play(plugin, player, GuiSounds.Event.ERROR);
+          return;
+        }
         plugin.getGradientSession().setColor(player.getUniqueId(), index, hex);
+        GuiSounds.play(plugin, player, custom ? GuiSounds.Event.CONFIRM : GuiSounds.Event.SELECT);
 
         plugin.getGradientColorSelection().remove(player.getUniqueId());
 
-        player.closeInventory();
-
-        new GradientMenu(plugin).open(player);
+        plugin
+            .getServer()
+            .getScheduler()
+            .runTask(plugin, () -> new GradientMenu(plugin).open(player));
       }
     }
 
     plugin.getColorSelectorSession().remove(player.getUniqueId());
-  }
-
-  private void setGradientColor(NameStyle style, int index, String hex) {
-
-    List<String> colors = style.getGradientColors();
-
-    while (colors.size() <= index) {
-      colors.add("#FFFFFF");
-    }
-
-    colors.set(index, hex);
-
-    style.setGradientColors(colors);
-
-    style.setType(StyleType.GRADIENT);
   }
 }

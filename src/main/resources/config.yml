@@ -1,24 +1,121 @@
-# ================================================
-#                  CHROMATICA
-# ================================================
+# Chromatica configuration. Reload settings with /chromatica reload.
+
+# Opt in to Chromatica's styled-name chat renderer. Disabled leaves chat untouched.
+# Name previews and PlaceholderAPI do not depend on this setting.
+chat-formatting-enabled: false
+
+community-presets:
+  # Hides the Community category and blocks publishing, applying, and deleting when false.
+  # Existing community files remain on disk. Server Presets remain available.
+  enabled: true
+  # Maximum published presets per player UUID. Set to 0 to prevent new publications.
+  # Lowering the limit preserves existing presets; owners can still delete them.
+  max-per-player: 10
+
+branding:
+  # Literal display text: no MiniMessage or player-provided formatting is parsed.
+  # Changes the main menu title and command message prefix only.
+  display-name: "Chromatica"
+  # Show one subtle credit lore line on a main-menu corner decoration.
+  show-credit: true
 
 gui:
+  gradient:
+    # compact: 27 slots, 7 stops at 10–16. expanded: 45 slots, 21 stops at 10–16, 19–25, 28–34.
+    # Saved gradients with 8–21 stops automatically use expanded mode without truncation.
+    layout: compact
+  sounds:
+    # Turn off all GUI sounds. Reload changes with /chromatica reload.
+    enabled: true
+    # Accept Bukkit sound names or registered namespaced sound keys.
+    # Volume must be 0–1; pitch must be 0.5–2. Volume 0 mutes one entry.
+    # Selection that immediately applies a style plays only confirm, not both.
+    select:
+      sound: "UI_BUTTON_CLICK"
+      volume: 0.3
+      pitch: 1.2
+    navigate:
+      sound: "UI_BUTTON_CLICK"
+      volume: 0.25
+      pitch: 1.0
+    confirm:
+      sound: "ENTITY_EXPERIENCE_ORB_PICKUP"
+      volume: 0.4
+      pitch: 1.4
+    publish:
+      sound: "ENTITY_PLAYER_LEVELUP"
+      volume: 0.3
+      pitch: 1.5
+    delete:
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 0.3
+      pitch: 0.8
+    admin-delete:
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 0.3
+      pitch: 1.0
+    limit:
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 0.3
+      pitch: 0.65
+    invalid-name:
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 0.3
+      pitch: 0.6
+    error:
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 0.3
+      pitch: 0.5
+    bold-on:
+      sound: "ITEM_MACE_SMASH_GROUND_HEAVY"
+      volume: 0.18
+      pitch: 1.2
+    bold-off:
+      sound: "ITEM_MACE_SMASH_AIR"
+      volume: 0.2
+      pitch: 1.3
+    italic-on:
+      sound: "BLOCK_ENCHANTMENT_TABLE_USE"
+      volume: 0.3
+      pitch: 1.2
+    italic-off:
+      sound: "ITEM_BOOK_PAGE_TURN"
+      volume: 0.25
+      pitch: 1
+    scramble-on:
+      sound: "ITEM_BRUSH_BRUSHING_GENERIC"
+      volume: 0.3
+      pitch: 1.4
+    scramble-off:
+      sound: "ITEM_BRUSH_BRUSHING_GENERIC"
+      volume: 0.25
+      pitch: 0.8
+    strikethrough-on:
+      sound: "ENTITY_SHEEP_SHEAR"
+      volume: 0.3
+      pitch: 1.2
+    strikethrough-off:
+      sound: "ITEM_SHEARS_SNIP"
+      volume: 0.2
+      pitch: 0.8
+    underline-on:
+      sound: "BLOCK_BAMBOO_PLACE"
+      volume: 0.25
+      pitch: 1.2
+    underline-off:
+      sound: "BLOCK_BAMBOO_WOOD_BUTTON_CLICK_OFF"
+      volume: 0.2
+      pitch: 0.8
   background:
-
-    # A menük hátterének mintája. A minta maga hard-code-olt,
-    # itt csak azt lehet kiválasztani, melyiket használja a plugin.
-    #
-    # Lehetséges értékek:
-    #   SOLID        - minden üres slot "primary" item lesz
-    #   CHECKERBOARD - sakktábla minta (primary/secondary váltakozva)
-    #   BORDER       - a szegély (legszélső sor/oszlop) primary, minden más secondary
-    #   CLASSIC       - az eredeti, dekoratív Chromatica minta
+    # Select the menu background pattern. Patterns are defined by the plugin.
+    # SOLID: every empty background slot uses the primary item.
+    # CHECKERBOARD: alternate primary and secondary items.
+    # BORDER: use primary items at the edges and secondary items inside.
+    # CLASSIC: Chromatica's original decorative pattern.
     pattern: CLASSIC
-
     primary:
       material: BLACK_STAINED_GLASS_PANE
       name: " "
-
     secondary:
       material: GRAY_STAINED_GLASS_PANE
       name: " "

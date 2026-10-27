@@ -66,6 +66,11 @@ public enum BackgroundPattern {
                 return INNER_ROW[col];
             }
 
+            // 5 soros menü középső sora
+            if (rows == 5 && row == 2) {
+                return MIDDLE_ROW[col];
+            }
+
             return col == 0 || col == LAST_COL;
         }
     };
@@ -77,14 +82,15 @@ public enum BackgroundPattern {
             true, false, false, true, true, true, false, false, true
     };
 
-    // S, P, P, S, S, S, P, P, S
+    // S, P, P, S, P, S, P, P, S
     private static final boolean[] INNER_ROW = {
-            false, true, true, false, false, false, true, true, false
+            false, true, true, false, true, false, true, true, false
     };
 
-    /**
-     * @return true, ha az adott (sor, oszlop) pozícióra a primary itemet
-     * kell helyezni, false, ha a secondary-t.
-     */
+    // P, S, S, P, S, P, S, S, P
+    private static final boolean[] MIDDLE_ROW = {
+            true, false, false, true, false, true, false, false, true
+    };
+
     public abstract boolean isPrimary(int row, int col, int rows);
 }

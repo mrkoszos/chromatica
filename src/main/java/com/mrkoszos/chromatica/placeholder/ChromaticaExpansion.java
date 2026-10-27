@@ -11,75 +11,68 @@ import org.jetbrains.annotations.NotNull;
 
 public class ChromaticaExpansion extends PlaceholderExpansion {
 
-    private final Chromatica plugin;
+  private final Chromatica plugin;
 
-    public ChromaticaExpansion(Chromatica plugin) {
-        this.plugin = plugin;
+  public ChromaticaExpansion(Chromatica plugin) {
+    this.plugin = plugin;
+  }
+
+  @Override
+  public @NotNull String getIdentifier() {
+    return "chromatica";
+  }
+
+  @Override
+  public @NotNull String getAuthor() {
+    return "mk";
+  }
+
+  @Override
+  public @NotNull String getVersion() {
+    return plugin.getPluginMeta().getVersion();
+  }
+
+  @Override
+  public boolean persist() {
+    return true;
+  }
+
+  @Override
+  public String onPlaceholderRequest(Player player, @NotNull String identifier) {
+
+    if (player == null) {
+      return "";
     }
 
-    @Override
-    public @NotNull String getIdentifier() {
-        return "chromatica";
+    NameStyle style = plugin.getNameStyleManager().getSnapshot(player.getUniqueId());
+
+    Component rendered =
+        plugin
+            .getNameRenderer()
+            .render(player.getName(), style, player.hasPermission("chromatica.format.scramble"));
+
+    /*
+     * =========================
+     *   %chromatica_name%  (ALAP - MiniMessage)
+     * =========================
+     */
+
+    if (identifier.equals("name")) {
+      return MiniMessage.miniMessage().serialize(rendered);
     }
 
-    @Override
-    public @NotNull String getAuthor() {
-        return "mk";
+    /*
+     * =========================
+     *   %chromatica_name_legacy%
+     * =========================
+     * Tartalék legacy §-kódos formátum,
+     * ha egy plugin nem érti a MiniMessage-t.
+     */
+
+    if (identifier.equals("name_legacy")) {
+      return LegacyComponentSerializer.legacySection().serialize(rendered) + "§r";
     }
 
-    @Override
-    public @NotNull String getVersion() {
-        return "1.0.0";
-    }
-
-    @Override
-    public boolean persist() {
-        return true;
-    }
-
-    @Override
-    public String onPlaceholderRequest(
-            Player player,
-            @NotNull String identifier
-    ) {
-
-        if (player == null) {
-            return "";
-        }
-
-        NameStyle style = plugin
-                .getNameStyleManager()
-                .getStyle(player.getUniqueId());
-
-        Component rendered = plugin
-                .getNameRenderer()
-                .render(player.getName(), style);
-
-        /*
-         * =========================
-         *   %chromatica_name%  (ALAP - MiniMessage)
-         * =========================
-         */
-
-        if (identifier.equals("name")) {
-            return MiniMessage.miniMessage()
-                    .serialize(rendered);
-        }
-
-        /*
-         * =========================
-         *   %chromatica_name_legacy%
-         * =========================
-         * Tartalék legacy §-kódos formátum,
-         * ha egy plugin nem érti a MiniMessage-t.
-         */
-
-        if (identifier.equals("name_legacy")) {
-            return LegacyComponentSerializer
-                    .legacySection()
-                    .serialize(rendered);
-        }
-
-        return null;
-    }
+    return null;
+  }
 }
